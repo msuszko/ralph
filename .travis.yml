@@ -22,8 +22,10 @@ install:
 # command to run tests, e.g. python setup.py test
 script: make test-with-coveralls
 before_script:
-  make flake
-
+  - make flake
+  - pip install git+https://github.com/rory/django-template-i18n-lint
+  - django-template-i18n-lint .
+ 
 after_success:
   - coveralls
 
