@@ -17,7 +17,7 @@
 
         var that = this;
         this.$deleteButton.on('click', function(e) {that.deleteItem(e);});
-        this.$queryInput.on('keypress', function(e) {that.keyPress(e);});
+        this.$queryInput.on('keydown', function(e) {that.keyDown(e);});
 
         Object.defineProperty(document.querySelector(that.options.targetSelector), 'value', {
             get: function(){
@@ -28,14 +28,20 @@
                 this.setAttribute('value', val);
             }
         });
-
     };
-    AutocompleteWidget.prototype.keyPress = function(event) {
+    AutocompleteWidget.prototype.keyDown = function(event) {
         var that = this;
+        var code = event.keyCode || event.which;
         var startChar = 20; // [space] in ASCII
         var endChar = 126; // ~ in ASCII
-        if (event.keyCode < startChar || event.keyCode > endChar) {
-           return;
+        var specialCodes = [
+            8, // backspace
+        ];
+        if (
+            (code < startChar || code > endChar) &&
+            $.inArray(code, specialCodes) === -1
+        ) {
+            return;
         }
         if(that.timer) {
             clearTimeout(that.timer);
@@ -50,7 +56,7 @@
             that.notFromPopup = undefined;
             return;
         }
-        var data = {}
+        var data = {};
         data[that.options.detailVar] = val;
         that.fetch(that.options.detailsUrl, data, function(data) {
             that.editMode(false);
@@ -65,6 +71,7 @@
         }
         else {
             this.$widget.removeClass('edit');
+            this.$suggestList.hide();
         }
     };
     AutocompleteWidget.prototype.deleteItem = function(event) {
@@ -86,6 +93,13 @@
         htmlItem.on('click', function(event){that.itemClick(event);});
         return htmlItem;
     };
+    AutocompleteWidget.prototype.updateEditUrl = function(editUrl) {
+        var pencil = this.$widget.find('.change-related');
+        pencil.attr('href', editUrl);
+        if(editUrl) {
+            pencil.show();
+        }
+    };
     AutocompleteWidget.prototype.itemClick = function(event) {
         event.preventDefault();
         var $clickedItem = $(event.target);
@@ -94,20 +108,22 @@
         this.notFromPopup = true;
         this.$target.val(item.pk);
         this.editMode(false);
+        this.updateEditUrl(item.edit_url);
     };
     AutocompleteWidget.prototype.clearSuggestList = function() {
         this.$noResults.hide();
+        this.$suggestList.hide();
         $('>:not(.template)', this.$suggestList).remove();
     };
     AutocompleteWidget.prototype.suggest = function() {
         var that = this;
         var query = that.getQuery();
-        if (query.length <= that.options.sentenceLength) {
+        that.clearSuggestList();
+        if (query.length < that.options.sentenceLength) {
             return false;
         }
-        that.clearSuggestList();
         that.fetchItems(query, function(data) {
-            if (data.results.length != 0) {
+            if (data.results.length !== 0) {
                 $.each(data.results, function() {
                     that.addItemToList(this);
                 });
@@ -115,6 +131,7 @@
             else {
                 that.$noResults.show();
             }
+            that.$suggestList.show();
         });
     };
     AutocompleteWidget.prototype.fetchItems = function(query, callback) {
@@ -152,5 +169,9 @@
         });
     };
 })(jQuery, Foundation);
+
+function updateAfterClose(id, newValue) {
+    var $parent = $('#' + id).val(newValue);
+}
 
 $('.autocomplete-widget').autocomplete();

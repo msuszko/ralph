@@ -18,6 +18,7 @@ INSTALLED_APPS = (
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
+    'django.contrib.humanize',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
@@ -31,6 +32,7 @@ INSTALLED_APPS = (
     'ralph.licences',
     'ralph.supports',
     'ralph.lib.foundation',
+    'ralph.lib.table',
     'ralph.data_importer',
     'ralph.dc_view',
     'ralph.reports',
@@ -53,7 +55,6 @@ ROOT_URLCONF = 'ralph.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.debug',
@@ -61,6 +62,11 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
             ],
+            'loaders': [
+                'django.template.loaders.filesystem.Loader',
+                'django.template.loaders.app_directories.Loader',
+                'ralph.lib.template.loaders.AppTemplateLoader',
+            ]
         },
     },
 ]
