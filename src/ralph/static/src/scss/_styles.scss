@@ -105,6 +105,11 @@ input.datepicker {
     position: inherit;
 }
 
+input[type="file"] {
+    width: auto;
+    margin: 0;
+}
+
 .add-related .fa {
     color: $success-color;
 }
@@ -126,4 +131,12 @@ input.datepicker {
     text-overflow: ellipsis;
     white-space: nowrap;
     overflow: hidden;
+}
+
+.required {
+    font-weight: bold;
+}
+
+.empty-form {
+    display: none;
 }

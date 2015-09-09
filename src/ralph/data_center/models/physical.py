@@ -3,18 +3,23 @@ import re
 from collections import namedtuple
 from itertools import chain
 
+from django import forms
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 
+from ralph.admin.sites import ralph_site
+from ralph.admin.widgets import AutocompleteWidget
 from ralph.assets.models.assets import AdminAbsoluteUrlMixin, Asset, NamedMixin
-from ralph.assets.models.choices import AssetSource
+from ralph.assets.models.choices import AssetSource, AssetStatus
 from ralph.data_center.models.choices import (
     ConnectionType,
     Orientation,
     RackOrientation
 )
+from ralph.lib.transitions.decorators import transition_action
+from ralph.lib.transitions.fields import TransitionField
 
 # i.e. number in range 1-16 and optional postfix 'A' or 'B'
 VALID_SLOT_NUMBER_FORMAT = re.compile('^([1-9][A,B]?|1[0-6][A,B]?)$')
@@ -166,11 +171,13 @@ class Rack(NamedMixin.NonUnique, models.Model):
         unique_together = ('name', 'server_room')
 
     def __str__(self):
-        return "{} ({}/{})".format(
-            self.name,
-            self.server_room.data_center,
-            self.server_room.name,
-        )
+        if self.server_room:
+            return "{} ({}/{})".format(
+                self.name,
+                self.server_room.data_center,
+                self.server_room.name,
+            )
+        return self.name
 
     def get_orientation_desc(self):
         return RackOrientation.name_from_id(self.orientation)
@@ -206,6 +213,10 @@ class Rack(NamedMixin.NonUnique, models.Model):
 class DataCenterAsset(Asset):
 
     rack = models.ForeignKey(Rack, null=True)
+    status = TransitionField(
+        default=AssetStatus.new.id,
+        choices=AssetStatus(),
+    )
     position = models.IntegerField(null=True)
     orientation = models.PositiveIntegerField(
         choices=Orientation(),
@@ -255,8 +266,22 @@ class DataCenterAsset(Asset):
         verbose_name = _('data center asset')
         verbose_name_plural = _('data center assets')
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Saved current rack value to check if changed.
+        self._rack_id = self.rack_id
+
     def __str__(self):
-        return '{} <id: {}>'.format(self.hostname, self.id)
+        return '{}'.format(self.hostname)
+
+    def __repr__(self):
+        return '<DataCenterAsset: {}>'.format(self.id)
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # When changing rack we search and save all descendants
+        if self.pk and self._rack_id != self.rack_id:
+            DataCenterAsset.objects.filter(parent=self).update(rack=self.rack)
 
     def get_orientation_desc(self):
         return Orientation.name_from_id(self.orientation)
@@ -343,6 +368,18 @@ class DataCenterAsset(Asset):
             Gap.generate_gaps(assets) for assets in assets_by_orientation
         ]
         return chain(*assets)
+
+    @transition_action
+    def change_rack(self, **kwargs):
+        self.rack = Rack.objects.get(pk=kwargs['rack'])
+        self.position = kwargs['position']
+
+    change_rack.form_fields = {
+        'rack': forms.CharField(widget=AutocompleteWidget(
+            rel=rack.rel, admin_site=ralph_site
+        )),
+        'position': forms.IntegerField(),
+    }
 
 
 class Connection(models.Model):

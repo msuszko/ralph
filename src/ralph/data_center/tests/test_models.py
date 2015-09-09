@@ -4,10 +4,11 @@ from django.core.exceptions import ValidationError
 
 from ralph.data_center.models.choices import Orientation
 from ralph.data_center.models.networks import (
+    get_network_tree,
     IPAddress,
-    Network,
-    get_network_tree
+    Network
 )
+from ralph.data_center.models.physical import DataCenterAsset
 from ralph.data_center.tests.factories import (
     DataCenterAssetFactory,
     RackFactory
@@ -152,6 +153,9 @@ class NetworkTest(RalphTestCase):
 class DataCenterAssetTest(RalphTestCase):
     def setUp(self):
         self.dc_asset = DataCenterAssetFactory()
+        self.dc_asset_2 = DataCenterAssetFactory(
+            parent=self.dc_asset,
+        )
 
     @unpack
     @data(
@@ -255,3 +259,10 @@ class DataCenterAssetTest(RalphTestCase):
         self.dc_asset.rack = RackFactory(max_u_height=rack_max_height)
         with self.assertRaises(ValidationError):
             self.dc_asset._validate_position_in_rack()
+
+    def test_change_rack_in_descendants(self):
+        self.dc_asset.rack = RackFactory()
+        self.dc_asset.save()
+        asset = DataCenterAsset.objects.get(pk=self.dc_asset_2.pk)
+
+        self.assertEquals(self.dc_asset.rack_id, asset.rack_id)

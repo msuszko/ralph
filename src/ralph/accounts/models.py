@@ -98,7 +98,7 @@ class RalphUser(AbstractUser):
         max_length=256,
         blank=True,
     )
-    regions = models.ManyToManyField(Region)
+    regions = models.ManyToManyField(Region, related_name='users')
 
     class Meta(AbstractUser.Meta):
         swappable = 'AUTH_USER_MODEL'
@@ -113,6 +113,9 @@ class RalphUser(AbstractUser):
         ).values_list(
             'region_id', flat=True
         )
+
+    def has_any_perms(self, perms, obj=None):
+        return any([self.has_perm(p, obj=obj) for p in perms])
 
     def save(self, *args, **kwargs):
         # set default values if None provided

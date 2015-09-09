@@ -12,7 +12,7 @@ upload-package:
 	./packaging/upload-package.sh
 
 install-js:
-	npm install gulp-watch gulp-autoprefixer gulp-bower gulp-less gulp-rename gulp-sass run-sequence jshint
+	npm install gulp-watch gulp-autoprefixer gulp-bower gulp-less gulp-rename gulp-sass run-sequence jshint node-qunit-phantomjs
 
 js-hint:
 	find src/ralph|grep "\.js$$"|grep -v vendor|xargs ./node_modules/.bin/jshint;
@@ -30,7 +30,7 @@ install-docs:
 	pip3 install -r requirements/docs.txt
 
 isort:
-	isort --diff --recursive --check-only src
+	isort --diff --recursive --check-only --quiet src
 
 test: clean
 	test_ralph test $(TEST)
@@ -55,3 +55,9 @@ menu:
 	ralph sitetree_resync_apps
 
 coveralls: install-docs docs coverage
+
+translate_messages:
+	ralph makemessages -a
+
+compile_messages:
+	ralph compilemessages
