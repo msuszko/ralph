@@ -4,7 +4,7 @@ from django.contrib.auth.models import Group
 from django.core.urlresolvers import reverse
 from django.utils.translation import ugettext_lazy as _
 
-from ralph.accounts.models import RalphUser, Region
+from ralph.accounts.models import RalphUser, Region, Team
 from ralph.admin import RalphAdmin, register
 from ralph.admin.mixins import RalphAdminFormMixin
 from ralph.admin.views.extra import RalphDetailView
@@ -98,9 +98,10 @@ class RalphUserAdmin(UserAdmin, RalphAdmin):
     change_views = [
         UserInfoView
     ]
+    readonly_fields = ('api_token_key',)
     fieldsets = (
         (None, {
-            'fields': ('username', 'password')
+            'fields': ('username', 'password', 'api_token_key')
         }),
         (_('Personal info'), {
             'fields': ('first_name', 'last_name', 'email')
@@ -108,7 +109,7 @@ class RalphUserAdmin(UserAdmin, RalphAdmin):
         (_('Permissions'), {
             'fields': (
                 'is_active', 'is_staff', 'is_superuser', 'groups',
-                'user_permissions'
+                'user_permissions', 'regions'
             )
         }),
         (_('Important dates'), {
@@ -116,16 +117,21 @@ class RalphUserAdmin(UserAdmin, RalphAdmin):
         }),
         (_('Profile'), {
             'fields': (
-                'gender', 'country', 'city', 'regions'
+                'gender', 'country', 'city'
             )
         }),
         (_('Job info'), {
             'fields': (
                 'company', 'profit_center', 'cost_center', 'department',
-                'manager', 'location', 'segment'
+                'manager', 'location', 'segment', 'team',
             )
         })
     )
+
+    def get_queryset(self, *args, **kwargs):
+        return super().get_queryset(*args, **kwargs).select_related(
+            'auth_token'
+        )
 
 
 @register(Group)
@@ -135,4 +141,9 @@ class RalphGroupAdmin(GroupAdmin, RalphAdmin):
 
 @register(Region)
 class RegionAdmin(RalphAdmin):
+    search_fields = ['name']
+
+
+@register(Team)
+class TeamAdmin(RalphAdmin):
     search_fields = ['name']

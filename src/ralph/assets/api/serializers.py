@@ -2,6 +2,7 @@ from django.db import transaction
 from rest_framework import serializers
 
 from ralph.api import RalphAPISerializer
+from ralph.api.utils import PolymorphicSerializer
 from ralph.assets.models import (
     Asset,
     AssetModel,
@@ -98,13 +99,31 @@ class AssetModelSerializer(RalphAPISerializer):
         model = AssetModel
 
 
-class BaseObjectSerializer(RalphAPISerializer):
+class BaseObjectPolymorphicSerializer(
+    PolymorphicSerializer,
+    RalphAPISerializer
+):
+    """
+    Serializer for BaseObjects viewset (serialize each model using dedicated
+    serializer).
+    """
     service_env = ServiceEnvironmentSerializer()
 
     class Meta:
         model = BaseObject
 
 
-class AssetSerializer(BaseObjectSerializer):
+class BaseObjectSerializer(RalphAPISerializer):
+    """
+    Base class for other serializers inheriting from `BaseObject`.
+    """
+    service_env = ServiceEnvironmentSerializer()
+
     class Meta:
+        model = BaseObject
+        exclude = ('content_type', )
+
+
+class AssetSerializer(BaseObjectSerializer):
+    class Meta(BaseObjectSerializer.Meta):
         model = Asset

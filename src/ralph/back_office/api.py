@@ -20,10 +20,9 @@ class BackOfficeAssetSerializer(AssetSerializer):
     user = SimpleRalphUserSerializer()
     owner = SimpleRalphUserSerializer()
 
-    class Meta:
+    class Meta(AssetSerializer.Meta):
         model = BackOfficeAsset
         depth = 1
-        exclude = ('content_type',)
 
 
 class BackOfficeAssetViewSet(RalphAPIViewSet):
@@ -36,6 +35,7 @@ class BackOfficeAssetViewSet(RalphAPIViewSet):
         'service_env__service__environments',
         'service_env__service__business_owners',
         'service_env__service__technical_owners',
+        'tags',
     ]
     queryset = BackOfficeAsset.objects.all()
     serializer_class = BackOfficeAssetSerializer

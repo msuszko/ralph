@@ -2,19 +2,15 @@
 import inspect
 
 from django.contrib.admin import SimpleListFilter
-from rest_framework import (
-    filters,
-    permissions,
-    relations,
-    serializers,
-    viewsets
-)
+from rest_framework import filters, permissions, relations, viewsets
 
 from ralph.admin.sites import ralph_site
-from ralph.api.permissions import RalphPermission
-from ralph.api.serializers import ReversedChoiceField
+from ralph.api.serializers import RalphAPISaveSerializer, ReversedChoiceField
 from ralph.api.utils import QuerysetRelatedMixin
-from ralph.lib.permissions.api import PermissionsForObjectFilter
+from ralph.lib.permissions.api import (
+    PermissionsForObjectFilter,
+    RalphPermission
+)
 
 
 class AdminSearchFieldsMixin(object):
@@ -88,7 +84,7 @@ class RalphAPIViewSetMixin(QuerysetRelatedMixin, AdminSearchFieldsMixin):
 
             return type(
                 '{}SaveSerializer'.format(Meta.model.__name__),
-                (serializers.ModelSerializer,),
+                (RalphAPISaveSerializer,),
                 {
                     'Meta': Meta,
                     'serializer_choice_field': ReversedChoiceField,
@@ -98,5 +94,22 @@ class RalphAPIViewSetMixin(QuerysetRelatedMixin, AdminSearchFieldsMixin):
         return base_serializer
 
 
-class RalphAPIViewSet(RalphAPIViewSetMixin, viewsets.ModelViewSet):
+_viewsets_registry = {}
+
+
+class RalphAPIViewSetMetaclass(type):
+    def __new__(cls, name, bases, attrs):
+        attrs['_viewsets_registry'] = _viewsets_registry
+        new_cls = super().__new__(cls, name, bases, attrs)
+        queryset = getattr(new_cls, 'queryset', None)
+        if queryset is not None:  # don't evaluate queryset
+            _viewsets_registry[queryset.model] = new_cls
+        return new_cls
+
+
+class RalphAPIViewSet(
+    RalphAPIViewSetMixin,
+    viewsets.ModelViewSet,
+    metaclass=RalphAPIViewSetMetaclass
+):
     pass

@@ -2,9 +2,14 @@
 import logging
 from collections import OrderedDict
 
-from rest_framework import permissions, serializers
+from rest_framework import permissions, relations, serializers
+from taggit_serializer.serializers import (
+    TaggitSerializer,
+    TagListSerializerField
+)
 
 from ralph.api.relations import RalphHyperlinkedRelatedField, RalphRelatedField
+from ralph.lib.mixins.models import TaggableMixin
 from ralph.lib.permissions.api import (
     PermissionsPerFieldSerializerMixin,
     RelatedObjectsPermissionsSerializerMixin
@@ -49,9 +54,28 @@ class ReversedChoiceField(serializers.ChoiceField):
         return super(ReversedChoiceField, self).to_internal_value(data)
 
 
+class DeclaredFieldsMetaclass(serializers.SerializerMetaclass):
+    """
+    Add additional declared fields in specific cases.
+
+    When serializer's model inherits from
+    `ralph.lib.mixins.models.TaggableMixin`, tags field is attached.
+    """
+    def __new__(cls, name, bases, attrs):
+        model = getattr(attrs.get('Meta'), 'model', None)
+        if model and issubclass(model, TaggableMixin):
+            attrs['tags'] = TagListSerializerField(required=False)
+            attrs['prefetch_related'] = (
+                list(attrs.get('prefetch_related', [])) + ['tags']
+            )
+        return super().__new__(cls, name, bases, attrs)
+
+
 class RalphAPISerializerMixin(
+    TaggitSerializer,
     RelatedObjectsPermissionsSerializerMixin,
     PermissionsPerFieldSerializerMixin,
+    metaclass=DeclaredFieldsMetaclass
 ):
     """
     Mix used in Ralph API serializers features:
@@ -129,8 +153,43 @@ class RalphAPISerializerMixin(
         return field_class, field_kwargs
 
 
+class RalphAPISaveSerializer(
+    TaggitSerializer,
+    serializers.ModelSerializer,
+    metaclass=DeclaredFieldsMetaclass
+):
+    serializer_choice_field = ReversedChoiceField
+    serializer_related_field = relations.PrimaryKeyRelatedField
+
+    def build_field(self, *args, **kwargs):
+        field_class, field_kwargs = super().build_field(*args, **kwargs)
+        # replace choice field by basic input
+        # this affect browsable api form, which perform poorly when there is
+        # lot of related objects (select_related couldn't be specified for them
+        # so this sometimes results in n+1 SQL queries)
+        # TODO: autocomplete field
+        # http://www.django-rest-framework.org/topics/browsable-api/#customizing
+        if issubclass(field_class, relations.RelatedField):
+            field_kwargs.setdefault('style', {})['base_template'] = 'input.html'
+        return field_class, field_kwargs
+
+
+serializers_registry = {}
+
+
+class RalphAPISerializerMetaclass(DeclaredFieldsMetaclass):
+    def __new__(cls, name, bases, attrs):
+        attrs['_serializers_registry'] = serializers_registry
+        new_cls = super().__new__(cls, name, bases, attrs)
+        meta = getattr(new_cls, 'Meta', None)
+        if getattr(meta, 'model', None):
+            serializers_registry[meta.model] = new_cls
+        return new_cls
+
+
 class RalphAPISerializer(
     RalphAPISerializerMixin,
-    serializers.HyperlinkedModelSerializer
+    serializers.HyperlinkedModelSerializer,
+    metaclass=RalphAPISerializerMetaclass
 ):
     pass

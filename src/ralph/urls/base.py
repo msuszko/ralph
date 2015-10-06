@@ -1,4 +1,5 @@
 from django.conf.urls import include, url
+from rest_framework.authtoken import views
 
 from ralph.admin import ralph_site as admin
 from ralph.api import router
@@ -10,7 +11,7 @@ api_urls = list(map(lambda u: url(r'^', include(u)), [
     'ralph.accounts.api',
     'ralph.assets.api.routers',
     'ralph.back_office.api',
-    'ralph.data_center.urls.api',
+    'ralph.data_center.api.routers',
     'ralph.dc_view.urls.api',
     'ralph.supports.api',
 ]))
@@ -23,6 +24,8 @@ api_urls += [url(r'^', include(router.urls))]
 urlpatterns = [
     url(r'^', include(admin.urls)),
     url(r'^api/', include(api_urls)),
+    url(r'^api-token-auth/', views.obtain_auth_token),
     url(r'^', include('ralph.dc_view.urls.ui')),
+    url(r'^', include('ralph.accounts.urls')),
     url(r'^', include('ralph.reports.urls')),
 ]
