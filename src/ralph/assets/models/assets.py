@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import datetime
+
 from dateutil.relativedelta import relativedelta
 from dj.choices import Country
 from django.conf import settings
@@ -13,7 +15,6 @@ from ralph.accounts.models import Team
 from ralph.assets.country_utils import iso2_to_iso3
 from ralph.assets.models.base import BaseObject
 from ralph.assets.models.choices import (
-    AssetStatus,
     ModelVisualizationLayout,
     ObjectModelType
 )
@@ -24,12 +25,6 @@ from ralph.lib.mixins.models import (
     TimeStampMixin
 )
 from ralph.lib.permissions import PermByFieldMixin
-
-try:
-    from django.utils.timezone import now as datetime_now
-except ImportError:
-    import datetime
-    datetime_now = datetime.datetime.now
 
 ASSET_HOSTNAME_TEMPLATE = getattr(settings, 'ASSET_HOSTNAME_TEMPLATE', None)
 if not ASSET_HOSTNAME_TEMPLATE:
@@ -155,7 +150,14 @@ class AssetModel(
         verbose_name_plural = _('models')
 
     def __str__(self):
-        return '%s %s' % (self.manufacturer, self.name)
+        if self.category:
+            return '[{}] {} {}'.format(
+                self.category, self.manufacturer, self.name
+            )
+        else:
+            return '{} {}'.format(
+                self.manufacturer, self.name
+            )
 
     def _get_layout_class(self, field):
         item = ModelVisualizationLayout.from_id(field)
@@ -367,14 +369,6 @@ class Asset(AdminAbsoluteUrlMixin, BaseObject):
                 different_country = user_country not in self.hostname
                 if different_country:
                     self.generate_hostname(commit, template_vars)
-
-    def is_liquidated(self, date=None):
-        date = date or datetime.date.today()
-        # check if asset has status 'liquidated' and if yes, check if it has
-        # this status on given date
-        if self.status == AssetStatus.liquidated and self._liquidated_at(date):
-            return True
-        return False
 
     def _liquidated_at(self, date):
         liquidated_history = self.get_history().filter(

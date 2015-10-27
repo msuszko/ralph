@@ -59,10 +59,10 @@ class BackOfficeAssetAdmin(
     """Back Office Asset admin class."""
     actions = ['bulk_edit_action']
     change_views = [
-        BackOfficeAssetComponents,
-        BackOfficeAssetSoftware,
         BackOfficeAssetLicence,
         BackOfficeAssetSupport,
+        BackOfficeAssetComponents,
+        BackOfficeAssetSoftware,
     ]
     list_display = [
         'status', 'barcode', 'purchase_order', 'model', 'user', 'warehouse',
@@ -87,9 +87,9 @@ class BackOfficeAssetAdmin(
     fieldsets = (
         (_('Basic info'), {
             'fields': (
-                'hostname', 'model', 'barcode', 'sn', 'niw', 'status',
+                'hostname', 'model', 'barcode', 'sn', 'imei', 'niw', 'status',
                 'warehouse', 'location', 'region', 'loan_end_date',
-                'service_env', 'remarks', 'imei', 'tags',
+                'service_env', 'remarks', 'tags',
             )
         }),
         (_('User Info'), {
